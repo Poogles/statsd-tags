@@ -7,7 +7,7 @@ import time
 import abc
 
 
-__all__ = ['StatsClient', 'TCPStatsClient']
+__all__ = ["StatsClient", "TCPStatsClient"]
 
 
 class Timer(object):
@@ -24,6 +24,7 @@ class Timer(object):
 
     def __call__(self, f):
         """Thread-safe timing function decorator."""
+
         @wraps(f)
         def _wrapped(*args, **kwargs):
             start_time = time.perf_counter()
@@ -33,6 +34,7 @@ class Timer(object):
                 elapsed_time_ms = 1000.0 * (time.perf_counter() - start_time)
                 self.client.timing(self.stat, elapsed_time_ms, self.rate)
             return return_value
+
         return _wrapped
 
     def __enter__(self):
@@ -49,7 +51,7 @@ class Timer(object):
 
     def stop(self, send=True):
         if self._start_time is None:
-            raise RuntimeError('Timer has not started.')
+            raise RuntimeError("Timer has not started.")
         dt = time.perf_counter() - self._start_time
         self.ms = 1000.0 * dt  # Convert to milliseconds.
         if send:
@@ -58,9 +60,9 @@ class Timer(object):
 
     def send(self):
         if self.ms is None:
-            raise RuntimeError('No data recorded.')
+            raise RuntimeError("No data recorded.")
         if self._sent:
-            raise RuntimeError('Already sent data.')
+            raise RuntimeError("Already sent data.")
         self._sent = True
         self.client.timing(self.stat, self.ms, self.rate, tags=self.tags)
 
@@ -83,11 +85,11 @@ class StatsClientBase(object):
 
     def timing(self, stat, delta, rate=1, tags=None):
         """Send new timing information. `delta` is in milliseconds."""
-        self._send_stat(stat, '%0.6f|ms' % delta, rate, tags=tags)
+        self._send_stat(stat, "%0.6f|ms" % delta, rate, tags=tags)
 
     def incr(self, stat, count=1, rate=1, tags=None):
         """Increment a stat by `count`."""
-        self._send_stat(stat, '%s|c' % count, rate, tags=tags)
+        self._send_stat(stat, "%s|c" % count, rate, tags=tags)
 
     def decr(self, stat, count=1, rate=1, tags=None):
         """Decrement a stat by `count`."""
@@ -100,15 +102,15 @@ class StatsClientBase(object):
                 if random.random() > rate:
                     return
             with self.pipeline() as pipe:
-                pipe._send_stat(stat, '0|g', 1, tags=tags)
-                pipe._send_stat(stat, '%s|g' % value, 1, tags=tags)
+                pipe._send_stat(stat, "0|g", 1, tags=tags)
+                pipe._send_stat(stat, "%s|g" % value, 1, tags=tags)
         else:
-            prefix = '+' if delta and value >= 0 else ''
-            self._send_stat(stat, '%s%s|g' % (prefix, value), rate, tags=tags)
+            prefix = "+" if delta and value >= 0 else ""
+            self._send_stat(stat, "%s%s|g" % (prefix, value), rate, tags=tags)
 
     def set(self, stat, value, rate=1, tags=None):
         """Set a set value."""
-        self._send_stat(stat, '%s|s' % value, rate, tags)
+        self._send_stat(stat, "%s|s" % value, rate, tags)
 
     def _send_stat(self, stat, value, rate, tags=None):
         self._after(self._prepare(stat, value, rate, tags=tags))
@@ -117,21 +119,20 @@ class StatsClientBase(object):
         if rate < 1:
             if random.random() > rate:
                 return
-            value = '%s|@%s' % (value, rate)
+            value = "%s|@%s" % (value, rate)
 
         if self._prefix:
-            stat = '%s.%s' % (self._prefix, stat)
+            stat = "%s.%s" % (self._prefix, stat)
 
         if tags:
-            tag_string = ','.join(
-                self._build_tag(k, v) for k, v in tags.items())
-            return '%s:%s|#%s' % (stat, value, tag_string)
+            tag_string = ",".join(self._build_tag(k, v) for k, v in tags.items())
+            return "%s:%s|#%s" % (stat, value, tag_string)
 
-        return '%s:%s' % (stat, value)
+        return "%s:%s" % (stat, value)
 
     def _build_tag(self, tag, value):
         if value:
-            return '%s:%s' % (str(tag), str(value))
+            return "%s:%s" % (str(tag), str(value))
         else:
             return tag
 
@@ -143,12 +144,14 @@ class StatsClientBase(object):
 class StatsClient(StatsClientBase):
     """A client for statsd."""
 
-    def __init__(self, host='localhost', port=8125, prefix=None,
-                 maxudpsize=512, ipv6=False):
+    def __init__(
+        self, host="localhost", port=8125, prefix=None, maxudpsize=512, ipv6=False
+    ):
         """Create a new client."""
         fam = socket.AF_INET6 if ipv6 else socket.AF_INET
-        family, _, _, _, addr = socket.getaddrinfo(
-            host, port, fam, socket.SOCK_DGRAM)[0]
+        family, _, _, _, addr = socket.getaddrinfo(host, port, fam, socket.SOCK_DGRAM)[
+            0
+        ]
         self._addr = addr
         self._sock = socket.socket(family, socket.SOCK_DGRAM)
         self._prefix = prefix
@@ -157,7 +160,7 @@ class StatsClient(StatsClientBase):
     def _send(self, data):
         """Send data to statsd."""
         try:
-            self._sock.sendto(data.encode('ascii'), self._addr)
+            self._sock.sendto(data.encode("ascii"), self._addr)
         except (socket.error, RuntimeError):
             # No time for love, Dr. Jones!
             pass
@@ -169,8 +172,9 @@ class StatsClient(StatsClientBase):
 class TCPStatsClient(StatsClientBase):
     """TCP version of StatsClient."""
 
-    def __init__(self, host='localhost', port=8125, prefix=None,
-                 timeout=None, ipv6=False):
+    def __init__(
+        self, host="localhost", port=8125, prefix=None, timeout=None, ipv6=False
+    ):
         """Create a new client."""
         self._host = host
         self._port = port
@@ -186,17 +190,18 @@ class TCPStatsClient(StatsClientBase):
         self._do_send(data)
 
     def _do_send(self, data):
-        self._sock.sendall(data.encode('ascii') + b'\n')
+        self._sock.sendall(data.encode("ascii") + b"\n")
 
     def close(self):
-        if self._sock and hasattr(self._sock, 'close'):
+        if self._sock and hasattr(self._sock, "close"):
             self._sock.close()
         self._sock = None
 
     def connect(self):
         fam = socket.AF_INET6 if self._ipv6 else socket.AF_INET
         family, _, _, _, addr = socket.getaddrinfo(
-            self._host, self._port, fam, socket.SOCK_STREAM)[0]
+            self._host, self._port, fam, socket.SOCK_STREAM
+        )[0]
         self._sock = socket.socket(family, socket.SOCK_STREAM)
         self._sock.settimeout(self._timeout)
         self._sock.connect(addr)
@@ -242,7 +247,6 @@ class PipelineBase(StatsClientBase):
 
 
 class Pipeline(PipelineBase):
-
     def __init__(self, client):
         super(Pipeline, self).__init__(client)
         self._maxudpsize = client._maxudpsize
@@ -256,12 +260,11 @@ class Pipeline(PipelineBase):
                 self._client._after(data)
                 data = stat
             else:
-                data += '\n' + stat
+                data += "\n" + stat
         self._client._after(data)
 
 
 class TCPPipeline(PipelineBase):
-
     def _send(self):
-        self._client._after('\n'.join(self._stats))
+        self._client._after("\n".join(self._stats))
         self._stats.clear()
